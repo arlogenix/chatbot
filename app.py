@@ -10,6 +10,8 @@ import logging
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
+from dotenv import load_dotenv
+
 from langchain_openai import ChatOpenAI
 from langchain.agents import tool
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -24,7 +26,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 app = Flask(__name__)
 CORS(app)
 
-os.environ['OPENAI_API_KEY'] = 'sk-proj-nMF9yljYobwRBowuTTlRT3BlbkFJ2WYO73vqdoO6b0Zbx47Q'
+os.environ['OPENAI_API_KEY'] = os.environ.get('OPENAI_API_KEY')
 
 
 def get_matched_stations(contact_number=None, start_station_name=None, end_station_name=None, service=None):
