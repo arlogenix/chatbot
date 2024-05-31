@@ -22,11 +22,13 @@ from langchain.agents.output_parsers.openai_tools import OpenAIToolsAgentOutputP
 from langchain.agents import AgentExecutor
 from langchain_core.messages import AIMessage, HumanMessage
 
+load_dotenv()
+
 
 app = Flask(__name__)
 CORS(app)
 
-os.environ['OPENAI_API_KEY'] = os.environ.get('OPENAI_API_KEY')
+os.environ['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY')
 
 
 def get_matched_stations(contact_number=None, start_station_name=None, end_station_name=None, service=None):
@@ -179,7 +181,7 @@ def ask_question():
             | llm_with_tools
             | OpenAIToolsAgentOutputParser()
         )
-        agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True, return_intermediate_steps=True)
+        agent_executor = AgentExecutor(agent=agent, tools=tools, return_intermediate_steps=True)
 
         result = agent_executor.invoke({"input": question, "chat_history": chat_history})
 
