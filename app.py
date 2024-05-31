@@ -1,7 +1,5 @@
 import os
 import requests
-import json
-import base64
 import pytz
 from datetime import datetime
 import traceback
@@ -40,7 +38,7 @@ def get_matched_stations(contact_number=None, start_station_name=None, end_stati
         "pservice": service,
         "apiKey": "eb38d7bc-e510-11ee-80e7-3d055a162a32"
     }
-    # Make the GET request
+
     response = requests.get(url, params=params)
 
     return response.json()
@@ -62,19 +60,15 @@ def get_timing(input_time=None):
         input_datetime = current_datetime
     else:
         try:
-            # Try parsing as ISO 8601 datetime string
             input_datetime = datetime.fromisoformat(input_time)
         except ValueError:
             current_date = current_datetime.date()
             try:
-                # Try parsing time in 24-hour format
                 input_time_obj = datetime.strptime(input_time, "%H:%M").time()
             except ValueError:
-                # Try parsing time in 12-hour format with AM/PM
                 input_time_obj = datetime.strptime(input_time, "%I:%M %p").time()
             input_datetime = datetime.combine(current_date, input_time_obj)
         
-        # Localize or convert to South African timezone
         if input_datetime.tzinfo is None:
             input_datetime = south_africa_tz.localize(input_datetime)
         else:
@@ -86,8 +80,6 @@ def get_timing(input_time=None):
 @tool
 def get_transport_schedule(pickup_station_name=None, destination_station_name=None, service=None, time=None):
     """Look up information about transport schedule of bus, train and flight"""
-
-    # https://api.onlinetransport.co.za/v1/online-train-service/directions/train-schedule?plat=-33.922087&plon=18.4231418&dlat=-33.9116724&dlon=18.5522531&timing=22/05/2024%2017:34&days=4&options=1&provider=&apiKey=eb38d7bc-e510-11ee-80e7-3d055a162a32
 
     match_stations = get_matched_stations('', pickup_station_name, destination_station_name, service)
 
@@ -122,13 +114,6 @@ def get_transport_schedule(pickup_station_name=None, destination_station_name=No
         return response.json()
     else:
         return {"error": f"Request failed with status code {response.status_code}"}
-    
-@tool
-def user_register():
-    """ Use this tool when user registers. """
-
-    return "register"
-
 
 def format_for_whatsapp(text):
     formatted_text = text.replace("**", "*")
@@ -147,8 +132,7 @@ def ask_question():
 
         llm = ChatOpenAI(model="gpt-3.5-turbo-0125", temperature=0)
 
-
-        tools = [get_transport_schedule, user_register]
+        tools = [get_transport_schedule]
 
         MEMORY_KEY = "chat_history"
         prompt = ChatPromptTemplate.from_messages(
@@ -157,8 +141,6 @@ def ask_question():
                     "system",
                     """You are an transport assistant for question answering tasks. Use the following excerpts of retrieved context to answer the question.
                     If you don't know the answer just say that 'Could you please let us know if you require train, bus or flight services? We are here for you!'.
-
-                    If user wants to register then return text "register" as response.
                     """,
                 ),
                 MessagesPlaceholder(variable_name=MEMORY_KEY),
@@ -181,7 +163,7 @@ def ask_question():
             | llm_with_tools
             | OpenAIToolsAgentOutputParser()
         )
-        agent_executor = AgentExecutor(agent=agent, tools=tools, return_intermediate_steps=True)
+        agent_executor = AgentExecutor(agent=agent, tools=tools, return_intermediate_steps=True, verbose=True)
 
         result = agent_executor.invoke({"input": question, "chat_history": chat_history})
 
@@ -214,72 +196,6 @@ def ask_question():
         traceback_str = traceback.format_exc()
         logging.error(f"Error occurred: {error_message}\n{traceback_str}")
         return jsonify({'error': 'An error occurred', 'message': error_message, 'traceback': traceback_str}), 500
-
-
-@app.route('/register', methods=['POST'])
-def register():
-    form_data = request.json
-
-    json_string = json.dumps(form_data)
-
-    base64_encoded_form = base64.b64encode(json_string.encode()).decode()
-    url = f"https://api.onlinetransport.co.za/user/register?form={base64_encoded_form}"
-
-    response = requests.get(url)
-
-    return jsonify(response.json()), response.status_code
-
-
-@app.route('/get-token', methods=['POST'])
-def get_token():
-    url = "https://sso.onlinetransport.co.za/auth/realms/ot/protocol/openid-connect/token"
-    payload = {
-        'username': 'someuser@test8.com',
-        'password': 'password',
-        'grant_type': 'password',
-        'client_secret': 'O7Qek0NgKCJbCqDJaGqzGWOvS15ukfU6',
-        'client_id': 'otUserDashboard'
-    }
-
-    headers = {
-        'Content-Type': 'application/x-www-form-urlencoded'
-    }
-
-    response = requests.post(url, data=payload, headers=headers)
-
-    return jsonify(response.json()), response.status_code
-
-
-@app.route('/settings', methods=['POST'])
-def settings():
-    url = "https://api.onlinetransport.co.za/v1/json/public/settings/"
-
-    data = request.json
-
-    response = requests.get(url, params=data)
-
-    return jsonify(response.json()), response.status_code
-
-@app.route('/get-keys', methods=['POST'])
-def get_keys():
-    url = "https://api.onlinetransport.co.za/v1/json/private/get-keys/"
-
-    data = request.json
-
-    response = requests.get(url, params=data)
-
-    return jsonify(response.json()), response.status_code
-
-@app.route('/ticket-price', methods=['POST'])
-def ticket_price():
-    url = "https://api.onlinetransport.co.za/v1/online-train-service/tickets/ticket-price/"
-
-    data = request.json
-
-    response = requests.get(url, params=data)
-
-    return jsonify(response.json()), response.status_code
-
 
 if __name__ == '__main__':
     app.run(debug=True)
