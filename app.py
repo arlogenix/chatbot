@@ -81,6 +81,14 @@ def get_timing(input_time=None):
 def get_transport_schedule(pickup_station_name=None, destination_station_name=None, service=None, time=None):
     """Look up information about transport schedule of bus, train and flight"""
 
+    if not pickup_station_name:
+        return {"error": "Please provide pickup station name"}
+    if not destination_station_name:
+        return {"error": "Please provide destination station name"}
+    if not service:
+        return {"error": "Please provide transport mode"}
+    
+    
     match_stations = get_matched_stations('', pickup_station_name, destination_station_name, service)
 
     plat = match_stations[0]['start_latitude']
@@ -166,7 +174,10 @@ def ask_question():
         agent_executor = AgentExecutor(agent=agent, tools=tools, return_intermediate_steps=True, verbose=True)
 
         result = agent_executor.invoke({"input": question, "chat_history": chat_history})
-
+        
+        if len(chat_history) > 6:
+            chat_history.clear()
+            
         chat_history.extend(
             [
                 HumanMessage(content=question),
@@ -177,8 +188,9 @@ def ask_question():
         answer = result["output"]
         
         api_data = None
-        api_data = result.get('intermediate_steps', [{}])[0]
-        api_data = api_data[1]
+        if result.get('intermediate_steps', [{}]):
+            api_data = result.get('intermediate_steps', [{}])[0]
+            api_data = api_data[1]
 
         
         
